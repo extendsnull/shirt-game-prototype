@@ -1,6 +1,11 @@
 import Phaser from "phaser";
 import mask from "./assets/mask.png";
 import shirt from "./assets/shirt.png";
+import shirtL1Var0 from "./assets/shirt-l1-0.png";
+import shirtL1Var1 from "./assets/shirt-l1-1.png";
+import shirtL1Var2 from "./assets/shirt-l1-2.png";
+import shirtL1Var3 from "./assets/shirt-l1-3.png";
+import shirtL1Var4 from "./assets/shirt-l1-4.png";
 
 import holeEmpty from "./assets/hole-empty.png";
 import hole1 from "./assets/hole-1.png";
@@ -34,6 +39,11 @@ const game = new Phaser.Game(config);
 function preload() {
   this.load.image("mask", mask);
   this.load.image("shirt", shirt);
+  this.load.image("shirt-l1-0", shirtL1Var0);
+  this.load.image("shirt-l1-1", shirtL1Var1);
+  this.load.image("shirt-l1-2", shirtL1Var2);
+  this.load.image("shirt-l1-3", shirtL1Var3);
+  this.load.image("shirt-l1-4", shirtL1Var4);
   this.load.image("hole-empty", holeEmpty);
   this.load.image("hole-1", hole1);
   this.load.image("hole-2", hole2);
@@ -59,8 +69,6 @@ function create() {
     .setVisible(false);
 
   const backgroundColor = 0x4B7669;
-  const borderColor = 0x966640;
-  const shirtColor = 0xB27B49;
 
   const amount = 48;
 
@@ -75,6 +83,34 @@ function create() {
   //   0, 1, 1, 1, 1, 0,
   // ];
 
+  this.levelSettings = [
+    {
+      level: 1,
+      defaultHolesMin: 2,
+      defaultHolesMax: 3,
+    },
+    {
+      level: 2,
+      defaultHolesMin: 1,
+      defaultHolesMax: 3,
+      transparentHolesMin: 1,
+      transparentHolesMax: 3,
+    },
+    {
+      level: 3,
+      defaultHolesMin: 1,
+      defaultHolesMax: 3,
+      transparentHolesMin: 1,
+      transparentHolesMax: 3,
+    },
+  ];
+
+  this.currentLevel = this.levelSettings[0];
+
+  const updateCounter = () => {
+    document.getElementById('counter').textContent = this.currentLevel.level;
+  };
+
   const grid = [
     0, 0, 0, 0, 0, 0,
     0, 1, 0, 0, 1, 0,
@@ -86,15 +122,51 @@ function create() {
     0, 1, 1, 1, 0, 0,
   ];
 
+  this.shirts = [
+    {
+      img: 'shirt-l1-0',
+      color: 0xB27B49,
+      border: 0x966640,
+    },
+    {
+      img: 'shirt-l1-1',
+      color: 0x5A7F41,
+      border: 0x4C6836,
+    },
+    {
+      img: 'shirt-l1-2',
+      color: 0x4E70DD,
+      border: 0x3C65B5,
+    },
+    {
+      img: 'shirt-l1-3',
+      color: 0xD8533D,
+      border: 0xBC4535,
+    },
+    {
+      img: 'shirt-l1-4',
+      color: 0xFF4B85,
+      border: 0xD83982,
+    },
+  ];
+
+  const getRandomShirt = () => {
+    this.shirtSettings = Phaser.Utils.Array.GetRandom(this.shirts);
+  };
+
   const create = () => {
+    updateCounter();
+    getRandomShirt();
+
+    shirt.setTexture(this.shirtSettings.img).setOrigin(0);
+
     const group = grid.map(item => {
       if (item) {
         const scale = Phaser.Math.Between(75, 100) / 100;
         const rotation = Phaser.Math.Between(0, 400) / 100;
   
         const sprite = this.add.image(0, 0, 'hole-empty');
-        sprite.setTint(shirtColor);
-        sprite.setScale(scale);
+        // sprite.setScale(scale);
         sprite.setRotation(rotation);
         sprite.setDepth(2);
         sprite.setVisible(false);
@@ -115,11 +187,26 @@ function create() {
     });
 
     this.items = group.filter(Boolean);
+    const items = this.items.slice();
 
-    for (let i = 0; i < 7; i++) {
-      const sprite = Phaser.Utils.Array.RemoveRandomElement(this.items.slice());
+    for (let i = 0; i < Phaser.Math.Between(
+      this.currentLevel.defaultHolesMin,
+      this.currentLevel.defaultHolesMax); i++) {
+      const sprite = Phaser.Utils.Array.RemoveRandomElement(items);
       sprite.setVisible(true);
       sprite.setTexture(`hole-${Phaser.Math.Between(1, 13)}`);
+      sprite.setTint(this.shirtSettings.color);
+      const mask = sprite.createBitmapMask(maskSrc);
+      sprite.setMask(mask);
+    }
+    
+    for (let i = 0; i < Phaser.Math.Between(
+      this.currentLevel.transparentHolesMin,
+      this.currentLevel.transparentHolesMax); i++) {
+      const sprite = Phaser.Utils.Array.RemoveRandomElement(items);
+      sprite.setVisible(true);
+      sprite.setTexture(`hole-${Phaser.Math.Between(1, 13)}`);
+      sprite.setTint(backgroundColor);
       const mask = sprite.createBitmapMask(maskSrc);
       sprite.setMask(mask);
     }
@@ -136,11 +223,25 @@ function create() {
 
   create();
 
-  const div = document.createElement('div');
-  const button = document.createElement('button');
-  button.textContent = 'Reset game';
-  div.appendChild(button);
-  document.body.appendChild(div);
+  document.getElementById('reset').onclick = reset;
 
-  button.onclick = reset;
+  document.getElementById('up-level').onclick = () => {
+    const index = this.levelSettings.indexOf(this.currentLevel)
+
+    if (index < this.levelSettings.length - 1) {
+      this.currentLevel = this.levelSettings[index + 1];
+      reset();
+    }
+
+  };
+
+  document.getElementById('down-level').onclick = () => {
+    const index = this.levelSettings.indexOf(this.currentLevel)
+
+    if (index !== 0) {
+      this.currentLevel = this.levelSettings[index - 1];
+      reset();
+    }
+
+  };
 }
